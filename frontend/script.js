@@ -139,7 +139,11 @@ function addMessage(content, type, sources = null, isWelcome = false) {
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${formattedSources.join(', ')}</div>
+                <div class="sources-content">
+                    <ul class="sources-list">
+                        ${formattedSources.map(source => `<li class="source-item">${source}</li>`).join('')}
+                    </ul>
+                </div>
             </details>
         `;
     }

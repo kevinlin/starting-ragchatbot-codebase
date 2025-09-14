@@ -5,23 +5,26 @@
     padding: 0;
 }
 
-/* CSS Variables */
+/* CSS Variables - Vibrant Tailwind Colors */
 :root {
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --background: #0f172a;
-    --surface: #1e293b;
-    --surface-hover: #334155;
+    --primary-color: #06b6d4; /* cyan-500 */
+    --primary-hover: #0891b2; /* cyan-600 */
+    --secondary-color: #10b981; /* emerald-500 */
+    --accent-color: #8b5cf6; /* violet-500 */
+    --highlight-color: #ec4899; /* fuchsia-500 */
+    --background: #0f0f23; /* darker background with purple tint */
+    --surface: #1a1a2e; /* dark surface with subtle purple */
+    --surface-hover: #16213e; /* hover state with cyan tint */
     --text-primary: #f1f5f9;
     --text-secondary: #94a3b8;
     --border-color: #334155;
-    --user-message: #2563eb;
+    --user-message: #06b6d4; /* cyan-500 for user messages */
     --assistant-message: #374151;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     --radius: 12px;
-    --focus-ring: rgba(37, 99, 235, 0.2);
+    --focus-ring: rgba(6, 182, 212, 0.2); /* cyan focus ring */
     --welcome-bg: #1e3a5f;
-    --welcome-border: #2563eb;
+    --welcome-border: #06b6d4; /* cyan welcome border */
 }
 
 /* Base Styles */
@@ -54,7 +57,7 @@ header {
 header h1 {
     font-size: 1.75rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 50%, #ec4899 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -245,6 +248,24 @@ header h1 {
     color: var(--text-secondary);
 }
 
+.sources-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.source-item {
+    margin: 0.5rem 0;
+    padding: 0.25rem 0;
+    line-height: 1.4;
+    border-bottom: 1px solid rgba(52, 65, 85, 0.3);
+}
+
+.source-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
 /* Markdown formatting styles */
 .message-content h1,
 .message-content h2,
@@ -340,7 +361,7 @@ header h1 {
 #chatInput {
     flex: 1;
     padding: 0.875rem 1.25rem;
-    background: var(--surface);
+    background: linear-gradient(135deg, var(--surface) 0%, #1e2555 100%);
     border: 1px solid var(--border-color);
     border-radius: 24px;
     color: var(--text-primary);
@@ -381,7 +402,7 @@ header h1 {
 #sendButton:hover:not(:disabled) {
     background: var(--primary-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4), 0 0 20px rgba(6, 182, 212, 0.2);
 }
 
 #sendButton:active:not(:disabled) {
@@ -403,17 +424,27 @@ header h1 {
 .loading span {
     width: 8px;
     height: 8px;
-    background: var(--text-secondary);
+    background: var(--primary-color);
     border-radius: 50%;
     animation: bounce 1.4s infinite ease-in-out both;
+    box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
 }
 
 .loading span:nth-child(1) {
     animation-delay: -0.32s;
+    background: var(--primary-color);
+    box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
 }
 
 .loading span:nth-child(2) {
     animation-delay: -0.16s;
+    background: var(--secondary-color);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.loading span:nth-child(3) {
+    background: var(--accent-color);
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
 }
 
 @keyframes bounce {
@@ -464,12 +495,12 @@ header h1 {
 
 .stats-header:focus,
 .suggested-header:focus {
-    color: var(--primary-color);
+    color: var(--accent-color);
 }
 
 .stats-header:hover,
 .suggested-header:hover {
-    color: var(--primary-color);
+    color: var(--accent-color);
 }
 
 .stats-header::-webkit-details-marker,
@@ -518,7 +549,7 @@ details[open] .suggested-header::before {
     display: inline-block;
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--primary-color);
+    color: var(--highlight-color);
     margin-left: 0.5rem;
 }
 
@@ -552,7 +583,7 @@ details[open] .suggested-header::before {
 
 .course-titles-header:focus {
     outline: none;
-    color: var(--primary-color);
+    color: var(--secondary-color);
 }
 
 .course-titles-header::-webkit-details-marker {
@@ -629,9 +660,10 @@ details[open] .suggested-header::before {
 
 .suggested-item:hover {
     background: var(--surface-hover);
-    border-color: var(--primary-color);
-    color: var(--primary-color);
+    border-color: var(--secondary-color);
+    color: var(--secondary-color);
     transform: translateX(2px);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
 }
 
 /* Responsive Design */
@@ -739,4 +771,16 @@ details[open] .suggested-header::before {
 /* Ensure source links work well in the collapsible context */
 .sources-content .source-link {
     font-weight: 500;
+}
+
+.source-item .source-link {
+    display: inline-block;
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.source-item .source-link:hover {
+    text-decoration: underline;
+    transform: translateX(2px);
 }
