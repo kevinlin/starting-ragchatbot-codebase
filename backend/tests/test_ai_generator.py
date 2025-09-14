@@ -39,7 +39,9 @@ class TestAIGenerator:
         """Test that SYSTEM_PROMPT is properly defined."""
         assert AIGenerator.SYSTEM_PROMPT is not None
         assert len(AIGenerator.SYSTEM_PROMPT) > 0
-        assert "search tool" in AIGenerator.SYSTEM_PROMPT.lower()
+        assert "tools" in AIGenerator.SYSTEM_PROMPT.lower()
+        assert "course content search" in AIGenerator.SYSTEM_PROMPT.lower()
+        assert "course outline" in AIGenerator.SYSTEM_PROMPT.lower()
 
     def test_generate_response_basic(self, ai_generator, mock_anthropic_client):
         """Test basic response generation without tools."""

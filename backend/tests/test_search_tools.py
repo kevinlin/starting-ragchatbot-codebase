@@ -5,7 +5,7 @@ Tests CourseSearchTool and ToolManager functionality.
 import pytest
 from unittest.mock import Mock, patch
 
-from search_tools import Tool, CourseSearchTool, ToolManager
+from search_tools import Tool, CourseSearchTool, CourseOutlineTool, ToolManager
 from vector_store import VectorStore, SearchResults
 
 
@@ -342,6 +342,272 @@ class TestCourseSearchTool:
         assert all("Course 2" in source["text"] for source in search_tool.last_sources)
 
 
+class TestCourseOutlineTool:
+    """Test the CourseOutlineTool class."""
+
+    @pytest.fixture
+    def mock_vector_store(self):
+        """Create a mock vector store for testing."""
+        store = Mock(spec=VectorStore)
+        # Mock the course_catalog attribute used by CourseOutlineTool
+        store.course_catalog = Mock()
+        return store
+
+    @pytest.fixture
+    def outline_tool(self, mock_vector_store):
+        """Create a CourseOutlineTool for testing."""
+        return CourseOutlineTool(mock_vector_store)
+
+    def test_initialization(self, mock_vector_store):
+        """Test CourseOutlineTool initialization."""
+        tool = CourseOutlineTool(mock_vector_store)
+        assert tool.store == mock_vector_store
+
+    def test_get_tool_definition(self, outline_tool):
+        """Test getting tool definition."""
+        definition = outline_tool.get_tool_definition()
+
+        assert definition["name"] == "get_course_outline"
+        assert "description" in definition
+        assert "input_schema" in definition
+
+        schema = definition["input_schema"]
+        assert schema["type"] == "object"
+        assert "course_title" in schema["properties"]
+        assert schema["required"] == ["course_title"]
+
+    def test_execute_successful_outline(self, outline_tool):
+        """Test successful course outline retrieval."""
+        import json
+
+        # Mock course name resolution
+        outline_tool.store._resolve_course_name.return_value = "Introduction to MCP"
+
+        # Mock course metadata retrieval
+        lessons_data = [
+            {"lesson_number": 1, "lesson_title": "Getting Started", "lesson_link": "https://example.com/lesson/1"},
+            {"lesson_number": 2, "lesson_title": "Advanced Topics", "lesson_link": "https://example.com/lesson/2"}
+        ]
+        mock_metadata = {
+            "course_link": "https://example.com/course/mcp",
+            "lessons_json": json.dumps(lessons_data)
+        }
+        outline_tool.store.course_catalog.get.return_value = {
+            "metadatas": [mock_metadata]
+        }
+
+        result = outline_tool.execute(course_title="MCP")
+
+        # Verify course name resolution was called
+        outline_tool.store._resolve_course_name.assert_called_once_with("MCP")
+
+        # Verify catalog get was called with resolved title
+        outline_tool.store.course_catalog.get.assert_called_once_with(ids=["Introduction to MCP"])
+
+        # Check formatted output
+        assert "**Introduction to MCP**" in result
+        assert "Course Link: https://example.com/course/mcp" in result
+        assert "**Course Lessons:**" in result
+        assert "1. Getting Started - [Link](https://example.com/lesson/1)" in result
+        assert "2. Advanced Topics - [Link](https://example.com/lesson/2)" in result
+
+    def test_execute_course_not_found(self, outline_tool):
+        """Test execution when course is not found."""
+        outline_tool.store._resolve_course_name.return_value = None
+
+        result = outline_tool.execute(course_title="NonExistent Course")
+
+        assert result == "No course found matching 'NonExistent Course'"
+        outline_tool.store._resolve_course_name.assert_called_once_with("NonExistent Course")
+
+    def test_execute_metadata_not_found(self, outline_tool):
+        """Test execution when course metadata is not found."""
+        outline_tool.store._resolve_course_name.return_value = "Found Course"
+        outline_tool.store.course_catalog.get.return_value = {"metadatas": []}
+
+        result = outline_tool.execute(course_title="Test Course")
+
+        assert result == "Course metadata not found for 'Found Course'"
+
+    def test_execute_invalid_lessons_json(self, outline_tool):
+        """Test execution with malformed lessons JSON."""
+        outline_tool.store._resolve_course_name.return_value = "Valid Course"
+
+        mock_metadata = {
+            "course_link": "https://example.com/course",
+            "lessons_json": "invalid json"
+        }
+        outline_tool.store.course_catalog.get.return_value = {
+            "metadatas": [mock_metadata]
+        }
+
+        result = outline_tool.execute(course_title="Valid Course")
+
+        assert result == "Invalid lesson data for course 'Valid Course'"
+
+    def test_execute_no_lessons(self, outline_tool):
+        """Test execution when course has no lessons."""
+        import json
+
+        outline_tool.store._resolve_course_name.return_value = "Empty Course"
+
+        mock_metadata = {
+            "course_link": "https://example.com/empty",
+            "lessons_json": json.dumps([])
+        }
+        outline_tool.store.course_catalog.get.return_value = {
+            "metadatas": [mock_metadata]
+        }
+
+        result = outline_tool.execute(course_title="Empty Course")
+
+        assert "**Empty Course**" in result
+        assert "Course Link: https://example.com/empty" in result
+        assert "No lessons found for this course." in result
+
+    def test_execute_lessons_without_links(self, outline_tool):
+        """Test execution with lessons that have no links."""
+        import json
+
+        outline_tool.store._resolve_course_name.return_value = "No Links Course"
+
+        lessons_data = [
+            {"lesson_number": 1, "lesson_title": "Lesson One"},
+            {"lesson_number": 2, "lesson_title": "Lesson Two"}
+        ]
+        mock_metadata = {
+            "course_link": "https://example.com/no-links",
+            "lessons_json": json.dumps(lessons_data)
+        }
+        outline_tool.store.course_catalog.get.return_value = {
+            "metadatas": [mock_metadata]
+        }
+
+        result = outline_tool.execute(course_title="No Links Course")
+
+        assert "1. Lesson One" in result
+        assert "2. Lesson Two" in result
+        # Should not contain link markers
+        assert "[Link]" not in result
+
+    def test_execute_missing_course_link(self, outline_tool):
+        """Test execution when course has no course link."""
+        import json
+
+        outline_tool.store._resolve_course_name.return_value = "No Course Link"
+
+        lessons_data = [{"lesson_number": 1, "lesson_title": "Lesson"}]
+        mock_metadata = {
+            "lessons_json": json.dumps(lessons_data)
+            # No course_link in metadata
+        }
+        outline_tool.store.course_catalog.get.return_value = {
+            "metadatas": [mock_metadata]
+        }
+
+        result = outline_tool.execute(course_title="No Course Link")
+
+        assert "Course Link: No link available" in result
+
+    def test_execute_lessons_unordered(self, outline_tool):
+        """Test execution with lessons in non-sequential order."""
+        import json
+
+        outline_tool.store._resolve_course_name.return_value = "Unordered Course"
+
+        # Lessons out of order
+        lessons_data = [
+            {"lesson_number": 3, "lesson_title": "Third Lesson"},
+            {"lesson_number": 1, "lesson_title": "First Lesson"},
+            {"lesson_number": 2, "lesson_title": "Second Lesson"}
+        ]
+        mock_metadata = {
+            "course_link": "https://example.com/unordered",
+            "lessons_json": json.dumps(lessons_data)
+        }
+        outline_tool.store.course_catalog.get.return_value = {
+            "metadatas": [mock_metadata]
+        }
+
+        result = outline_tool.execute(course_title="Unordered Course")
+
+        # Verify lessons are sorted correctly in output
+        lines = result.split('\n')
+        lesson_lines = [line for line in lines if line.strip() and line[0].isdigit()]
+
+        assert "1. First Lesson" in lesson_lines[0]
+        assert "2. Second Lesson" in lesson_lines[1]
+        assert "3. Third Lesson" in lesson_lines[2]
+
+    def test_execute_lessons_missing_data(self, outline_tool):
+        """Test execution with lessons missing some data."""
+        import json
+
+        outline_tool.store._resolve_course_name.return_value = "Incomplete Course"
+
+        lessons_data = [
+            {"lesson_number": 1, "lesson_title": "Complete Lesson", "lesson_link": "https://example.com/1"},
+            {"lesson_title": "No Number Lesson"},  # Missing lesson_number
+            {"lesson_number": 3},  # Missing lesson_title
+            {}  # Empty lesson
+        ]
+        mock_metadata = {
+            "course_link": "https://example.com/incomplete",
+            "lessons_json": json.dumps(lessons_data)
+        }
+        outline_tool.store.course_catalog.get.return_value = {
+            "metadatas": [mock_metadata]
+        }
+
+        result = outline_tool.execute(course_title="Incomplete Course")
+
+        assert "1. Complete Lesson - [Link](https://example.com/1)" in result
+        assert "N/A. No Number Lesson" in result
+        assert "3. Untitled Lesson" in result
+        assert "N/A. Untitled Lesson" in result
+
+    def test_execute_exception_handling(self, outline_tool):
+        """Test execution when an exception occurs."""
+        outline_tool.store._resolve_course_name.return_value = "Exception Course"
+        outline_tool.store.course_catalog.get.side_effect = Exception("Database error")
+
+        result = outline_tool.execute(course_title="Exception Course")
+
+        assert result == "Error retrieving course outline: Database error"
+
+    def test_format_course_outline_complete(self, outline_tool):
+        """Test _format_course_outline with complete data."""
+        lessons = [
+            {"lesson_number": 1, "lesson_title": "Intro", "lesson_link": "https://example.com/1"},
+            {"lesson_number": 2, "lesson_title": "Advanced", "lesson_link": "https://example.com/2"}
+        ]
+
+        formatted = outline_tool._format_course_outline(
+            title="Test Course",
+            course_link="https://example.com/course",
+            lessons=lessons
+        )
+
+        assert "**Test Course**" in formatted
+        assert "Course Link: https://example.com/course" in formatted
+        assert "**Course Lessons:**" in formatted
+        assert "1. Intro - [Link](https://example.com/1)" in formatted
+        assert "2. Advanced - [Link](https://example.com/2)" in formatted
+
+    def test_format_course_outline_empty_lessons(self, outline_tool):
+        """Test _format_course_outline with empty lessons."""
+        formatted = outline_tool._format_course_outline(
+            title="Empty Course",
+            course_link="https://example.com/empty",
+            lessons=[]
+        )
+
+        assert "**Empty Course**" in formatted
+        assert "Course Link: https://example.com/empty" in formatted
+        assert "No lessons found for this course." in formatted
+        assert "**Course Lessons:**" not in formatted
+
+
 class TestToolManager:
     """Test the ToolManager class."""
 
@@ -530,3 +796,58 @@ class TestToolManager:
         assert len(sources) == 1
         assert sources[0]["text"] == "Integration Course - Lesson 1"
         assert sources[0]["url"] == "https://example.com/integration"
+
+    def test_integration_with_both_tools(self, tool_manager):
+        """Test ToolManager with both CourseSearchTool and CourseOutlineTool."""
+        import json
+
+        # Set up search tool
+        mock_vector_store_search = Mock(spec=VectorStore)
+        search_results = SearchResults(
+            documents=["Search content"],
+            metadata=[{"course_title": "Test Course", "lesson_number": 1}],
+            distances=[0.1]
+        )
+        mock_vector_store_search.search.return_value = search_results
+        mock_vector_store_search.get_lesson_link.return_value = "https://example.com/lesson/1"
+
+        search_tool = CourseSearchTool(mock_vector_store_search)
+
+        # Set up outline tool
+        mock_vector_store_outline = Mock(spec=VectorStore)
+        mock_vector_store_outline._resolve_course_name.return_value = "Test Course"
+        mock_vector_store_outline.course_catalog = Mock()
+
+        lessons_data = [
+            {"lesson_number": 1, "lesson_title": "Lesson 1", "lesson_link": "https://example.com/1"}
+        ]
+        mock_metadata = {
+            "course_link": "https://example.com/course",
+            "lessons_json": json.dumps(lessons_data)
+        }
+        mock_vector_store_outline.course_catalog.get.return_value = {
+            "metadatas": [mock_metadata]
+        }
+
+        outline_tool = CourseOutlineTool(mock_vector_store_outline)
+
+        # Register both tools
+        tool_manager.register_tool(search_tool)
+        tool_manager.register_tool(outline_tool)
+
+        # Test that both tools are available
+        definitions = tool_manager.get_tool_definitions()
+        assert len(definitions) == 2
+
+        tool_names = {def_["name"] for def_ in definitions}
+        assert "search_course_content" in tool_names
+        assert "get_course_outline" in tool_names
+
+        # Test executing search tool
+        search_result = tool_manager.execute_tool("search_course_content", query="test")
+        assert "Search content" in search_result
+
+        # Test executing outline tool
+        outline_result = tool_manager.execute_tool("get_course_outline", course_title="Test")
+        assert "**Test Course**" in outline_result
+        assert "1. Lesson 1" in outline_result
