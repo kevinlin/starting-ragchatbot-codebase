@@ -4,7 +4,8 @@
       "Bash(uv run:*)",
       "Bash(./run.sh)",
       "Bash(curl:*)",
-      "Bash(open http://127.0.0.1:8000:*)"
+      "Bash(open http://127.0.0.1:8000:*)",
+      "Bash(chmod:*)"
     ]
   },
   "outputStyle": "Explanatory"
