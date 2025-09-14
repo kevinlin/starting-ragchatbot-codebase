@@ -108,16 +108,24 @@ Provide only the direct answer to what was asked.
         tool_results = []
         for content_block in initial_response.content:
             if content_block.type == "tool_use":
-                tool_result = tool_manager.execute_tool(
-                    content_block.name, 
-                    **content_block.input
-                )
-                
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": content_block.id,
-                    "content": tool_result
-                })
+                try:
+                    tool_result = tool_manager.execute_tool(
+                        content_block.name, 
+                        **content_block.input
+                    )
+                    
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": content_block.id,
+                        "content": tool_result
+                    })
+                except Exception as e:
+                    # Handle tool execution errors gracefully
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": content_block.id,
+                        "content": f"Tool execution failed: {str(e)}"
+                    })
         
         # Add tool results as single message
         if tool_results:
@@ -133,3 +141,19 @@ Provide only the direct answer to what was asked.
         # Get final response
         final_response = self.client.messages.create(**final_params)
         return final_response.content[0].text
+    
+    def _build_system_content(self, conversation_history: Optional[str] = None) -> str:
+        """
+        Build system content with optional conversation history.
+        
+        Args:
+            conversation_history: Optional previous conversation context
+            
+        Returns:
+            System prompt content
+        """
+        return (
+            f"{self.SYSTEM_PROMPT}\n\nPrevious conversation:\n{conversation_history}"
+            if conversation_history 
+            else self.SYSTEM_PROMPT
+        )

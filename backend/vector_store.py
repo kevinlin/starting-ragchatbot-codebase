@@ -90,11 +90,17 @@ class VectorStore:
         search_limit = limit if limit is not None else self.max_results
         
         try:
-            results = self.course_content.query(
-                query_texts=[query],
-                n_results=search_limit,
-                where=filter_dict
-            )
+            # Build query parameters
+            query_params = {
+                "query_texts": [query],
+                "n_results": search_limit
+            }
+            
+            # Only add where clause if filter is not None and not empty
+            if filter_dict:
+                query_params["where"] = filter_dict
+                
+            results = self.course_content.query(**query_params)
             return SearchResults.from_chroma(results)
         except Exception as e:
             return SearchResults.empty(f"Search error: {str(e)}")
@@ -108,8 +114,9 @@ class VectorStore:
             )
             
             if results['documents'][0] and results['metadatas'][0]:
-                # Return the title (which is now the ID)
-                return results['metadatas'][0][0]['title']
+                # Return the title from metadata
+                metadata = results['metadatas'][0][0]
+                return metadata.get('title')
         except Exception as e:
             print(f"Error resolving course name: {e}")
         

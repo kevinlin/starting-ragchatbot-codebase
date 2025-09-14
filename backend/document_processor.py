@@ -107,42 +107,61 @@ class DocumentProcessor:
         
         lines = content.strip().split('\n')
         
-        # Extract course metadata from first three lines
+        # Extract course metadata from first few lines
         course_title = filename  # Default fallback
         course_link = None
-        instructor_name = "Unknown"
+        instructor_name = None  # Default to None, will be set to "Unknown" for unstructured content
+        title_found = False
+        has_course_structure = False  # Track if document has proper course structure
         
-        # Parse course title from first line
-        if len(lines) >= 1 and lines[0].strip():
-            title_match = re.match(r'^Course Title:\s*(.+)$', lines[0].strip(), re.IGNORECASE)
-            if title_match:
-                course_title = title_match.group(1).strip()
-            else:
-                course_title = lines[0].strip()
-        
-        # Parse remaining lines for course metadata
-        for i in range(1, min(len(lines), 4)):  # Check first 4 lines for metadata
+        # Parse metadata from first 4 lines (can be in any order)
+        for i in range(min(len(lines), 4)):
             line = lines[i].strip()
             if not line:
+                continue
+                
+            # Try to match course title
+            title_match = re.match(r'^Course Title:\s*(.+)$', line, re.IGNORECASE)
+            if title_match:
+                course_title = title_match.group(1).strip()
+                title_found = True
+                has_course_structure = True
                 continue
                 
             # Try to match course link
             link_match = re.match(r'^Course Link:\s*(.+)$', line, re.IGNORECASE)
             if link_match:
                 course_link = link_match.group(1).strip()
+                has_course_structure = True
                 continue
                 
             # Try to match instructor
             instructor_match = re.match(r'^Course Instructor:\s*(.+)$', line, re.IGNORECASE)
             if instructor_match:
                 instructor_name = instructor_match.group(1).strip()
+                has_course_structure = True
                 continue
+                
+            # If this is the first line and no title found yet, and it's not a metadata line,
+            # only use it as title if the document has lesson structure
+            if i == 0 and not title_found:
+                # Check if document has lesson structure
+                has_lessons = any(re.match(r'^Lesson\s+\d+:', line_check.strip(), re.IGNORECASE) 
+                                for line_check in lines[1:min(len(lines), 10)])
+                if has_lessons:
+                    course_title = line
+                    title_found = True
+                    has_course_structure = True
+        
+        # Set default instructor for unstructured content
+        if not has_course_structure and instructor_name is None:
+            instructor_name = "Unknown"
         
         # Create course object with title as ID
         course = Course(
             title=course_title,
             course_link=course_link,
-            instructor=instructor_name if instructor_name != "Unknown" else None
+            instructor=instructor_name
         )
         
         # Process lessons and create chunks
@@ -153,10 +172,19 @@ class DocumentProcessor:
         lesson_content = []
         chunk_counter = 0
         
-        # Start processing from line 4 (after metadata)
-        start_index = 3
-        if len(lines) > 3 and not lines[3].strip():
-            start_index = 4  # Skip empty line after instructor
+        # Find where lessons start by looking for first non-metadata content
+        start_index = 0
+        # Skip past metadata lines and empty lines
+        for i in range(len(lines)):
+            line = lines[i].strip()
+            if not line:
+                continue
+            # Check if this is a metadata line
+            if (re.match(r'^Course (Title|Link|Instructor):\s*(.+)$', line, re.IGNORECASE)):
+                continue
+            # This is the first non-metadata line
+            start_index = i
+            break
         
         i = start_index
         while i < len(lines):
@@ -242,10 +270,11 @@ class DocumentProcessor:
                     course_chunks.append(course_chunk)
                     chunk_counter += 1
         
-        # If no lessons found, treat entire content as one document
-        if not course_chunks and len(lines) > 2:
+        # If no lessons found, treat remaining content as one document (only if there's meaningful content)
+        if not course_chunks and len(lines) > start_index:
             remaining_content = '\n'.join(lines[start_index:]).strip()
-            if remaining_content:
+            # Only create chunks if there's substantial content (not just empty lesson headers)
+            if remaining_content and not re.match(r'^\s*Lesson\s+\d+:\s*.*\s*$', remaining_content, re.IGNORECASE | re.DOTALL):
                 chunks = self.chunk_text(remaining_content)
                 for chunk in chunks:
                     course_chunk = CourseChunk(

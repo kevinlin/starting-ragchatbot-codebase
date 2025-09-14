@@ -333,7 +333,7 @@ Lesson 1: Long Lesson
         file_path = Path(temp_dir) / "long.txt"
         file_path.write_text(content)
 
-        course, chunks = processor.process_course_document(str(file_path))
+        course, chunks = small_processor.process_course_document(str(file_path))
 
         # Should create multiple chunks
         assert len(chunks) > 1

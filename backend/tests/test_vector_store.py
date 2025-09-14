@@ -85,8 +85,19 @@ class TestVectorStore:
     def vector_store(self, mock_chromadb, mock_sentence_transformers):
         """Create a VectorStore for testing."""
         mock_client = Mock()
-        mock_collection = Mock()
-        mock_client.get_or_create_collection.return_value = mock_collection
+        mock_catalog_collection = Mock()
+        mock_content_collection = Mock()
+        
+        # Mock get_or_create_collection to return different mocks based on name
+        def mock_get_or_create_collection(name, **kwargs):
+            if name == "course_catalog":
+                return mock_catalog_collection
+            elif name == "course_content":
+                return mock_content_collection
+            else:
+                return Mock()
+        
+        mock_client.get_or_create_collection.side_effect = mock_get_or_create_collection
         mock_chromadb.PersistentClient.return_value = mock_client
 
         store = VectorStore(
@@ -95,8 +106,8 @@ class TestVectorStore:
             max_results=5
         )
         store.client = mock_client
-        store.course_catalog = mock_collection
-        store.course_content = mock_collection
+        store.course_catalog = mock_catalog_collection
+        store.course_content = mock_content_collection
         return store
 
     def test_initialization(self, mock_chromadb, mock_sentence_transformers):
