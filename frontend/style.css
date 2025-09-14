@@ -716,3 +716,27 @@ details[open] .suggested-header::before {
         width: 280px;
     }
 }
+
+/* Source Link Styling */
+.source-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    cursor: pointer;
+}
+
+.source-link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+.source-link:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
+    border-radius: 2px;
+}
+
+/* Ensure source links work well in the collapsible context */
+.sources-content .source-link {
+    font-weight: 500;
+}
