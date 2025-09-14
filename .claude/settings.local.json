@@ -11,5 +11,18 @@
       "mcp__playwright__browser_hover"
     ]
   },
-  "outputStyle": "Explanatory"
+  "outputStyle": "Explanatory",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "say 'All done!'"
+          }
+        ]
+      }
+    ]
+  }
 }
