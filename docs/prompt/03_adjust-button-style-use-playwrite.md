@@ -1,0 +1,1 @@
+Using the playwright MCP server visit 127.0.0.1:8000 and view the new chat button. I want that button to look the same as the other links below for Courses and Try Asking. Make sure this is left aligned and that the border is removed

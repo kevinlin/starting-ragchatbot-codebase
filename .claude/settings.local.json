@@ -5,7 +5,10 @@
       "Bash(./run.sh)",
       "Bash(curl:*)",
       "Bash(open http://127.0.0.1:8000:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_hover"
     ]
   },
   "outputStyle": "Explanatory"

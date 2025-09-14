@@ -243,6 +243,35 @@ class TestSessionManager:
         assert len(messages) == 1
         assert messages[0].content == ""
 
+    def test_new_chat_button_workflow(self, session_manager):
+        """Test workflow for new chat button functionality."""
+        # Simulate existing conversation
+        session_id = session_manager.create_session()
+        session_manager.add_exchange(session_id, "What is Python?", "Python is a programming language.")
+        session_manager.add_exchange(session_id, "Tell me more", "Python is used for web development, data science, and more.")
+
+        # Verify conversation exists
+        assert len(session_manager.sessions[session_id]) == 4  # 2 exchanges = 4 messages
+        history = session_manager.get_conversation_history(session_id)
+        assert history is not None
+        assert "Python is a programming language" in history
+
+        # Simulate new chat button click - clear the session
+        session_manager.clear_session(session_id)
+
+        # Verify session is cleared
+        assert len(session_manager.sessions[session_id]) == 0
+        assert session_manager.get_conversation_history(session_id) is None
+
+        # Simulate new conversation starting (as would happen when user asks first question)
+        session_manager.add_exchange(session_id, "Hello", "Welcome! How can I help?")
+
+        # Verify new conversation works normally
+        assert len(session_manager.sessions[session_id]) == 2
+        new_history = session_manager.get_conversation_history(session_id)
+        assert "Welcome! How can I help?" in new_history
+        assert "Python is a programming language" not in new_history  # Old conversation is gone
+
     def test_edge_case_unicode_content(self, session_manager):
         """Test handling of unicode message content."""
         session_id = session_manager.create_session()
