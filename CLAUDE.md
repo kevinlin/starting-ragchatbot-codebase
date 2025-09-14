@@ -26,6 +26,9 @@ cp .env.example .env
 ### Package Management
 This project uses **uv** as the Python package manager. All dependencies are defined in `pyproject.toml`.
 
+### Running tests or other commands
+- Always use **uv** instead of **python** to run any python commands
+
 ## Architecture Overview
 
 This is a **Retrieval-Augmented Generation (RAG) system** for course materials with a layered architecture:
