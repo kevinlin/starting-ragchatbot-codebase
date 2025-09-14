@@ -82,6 +82,76 @@ graph TD
     style Q fill:#f3e5f5
 ```
 
+## Sequence Diagram
+
+The following sequence diagram shows the chronological interactions between system components during query processing:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend as Frontend (JS)
+    participant RAG as RAG FastAPI
+    participant Session as Session Manager
+    participant AI as AI Generator
+    participant Claude as Claude API
+    participant Search as CourseSearchTool
+    participant Vector as Vector Store
+    participant ChromaDB as ChromaDB
+
+    User->>Frontend: Types query & clicks send
+    Frontend->>Frontend: Disable input, show loading
+    Frontend->>RAG: POST /api/query {query, session_id}
+
+    RAG->>Session: get_conversation_history(session_id)
+    Session-->>RAG: conversation history
+
+    RAG->>AI: generate_response(prompt, history, tools)
+
+    AI->>AI: Build system content & API params
+    AI->>Claude: messages.create() with tools
+
+    Note over Claude: Claude analyzes query and decides to search
+
+    Claude-->>AI: Response with tool_use: search_course_content
+
+    AI->>Search: execute(query, course_name, lesson_number)
+
+    Search->>Vector: search(query, course_name, lesson_number)
+
+    alt Course name provided
+        Vector->>ChromaDB: Query course_catalog collection
+        ChromaDB-->>Vector: Best matching course title
+        Vector->>Vector: _resolve_course_name()
+    end
+
+    Vector->>Vector: _build_filter(course_title, lesson_number)
+    Vector->>ChromaDB: Query course_content with filters
+    ChromaDB-->>Vector: Search results (docs, metadata, distances)
+    Vector-->>Search: SearchResults object
+
+    Search->>Search: _format_results() & track sources
+    Search-->>AI: Tool execution results
+
+    AI->>AI: Append tool results to conversation
+    AI->>Claude: Continue conversation with tool results
+    Claude-->>AI: Final response with retrieved context
+
+    AI-->>RAG: Generated response text
+
+    RAG->>Search: get_last_sources()
+    Search-->>RAG: Sources list
+    RAG->>Search: reset_sources()
+
+    RAG->>Session: add_exchange(session_id, query, response)
+
+    RAG-->>Frontend: JSON {answer, sources, session_id}
+
+    Frontend->>Frontend: Remove loading, parse response
+    Frontend->>Frontend: addMessage(answer, 'assistant', sources)
+    Frontend->>Frontend: Re-enable input
+    Frontend->>User: Display formatted response with sources
+```
+
 ## Detailed Flow
 
 ### 1. Frontend Query Initiation
