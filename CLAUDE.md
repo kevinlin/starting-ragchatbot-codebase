@@ -18,6 +18,9 @@ cd backend && uv run uvicorn app:app --reload --port 8000
 # Install dependencies
 uv sync
 
+# Install development dependencies (required for testing)
+uv sync --extra dev
+
 # Set up environment variables
 cp .env.example .env
 # Edit .env and add your ANTHROPIC_API_KEY
@@ -26,7 +29,28 @@ cp .env.example .env
 ### Package Management
 This project uses **uv** as the Python package manager. All dependencies are defined in `pyproject.toml`.
 
-### Running tests or other commands
+### Testing Commands
+
+**CRITICAL**: All tests MUST pass before any new feature or change is considered completed.
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run tests with verbose output and coverage
+uv run pytest -v --cov=backend --cov-report=term-missing
+
+# Run specific test file
+uv run pytest backend/tests/test_vector_store.py
+
+# Run tests for specific functionality
+uv run pytest -k "search" -v
+
+# Generate HTML coverage report
+uv run pytest --cov=backend --cov-report=html:htmlcov
+```
+
+### Running Other Commands
 - Always use **uv** instead of **python** to run any python commands
 
 ## Architecture Overview
@@ -113,3 +137,36 @@ The frontend uses relative API paths (`/api`) and expects:
 ## ChromaDB Persistence
 
 Vector database stored in `./chroma_db/` directory with persistent client configuration. Data survives application restarts and supports incremental document addition.
+
+## Testing Architecture
+
+### Test Organization (`backend/tests/`)
+- **Unit Tests**: Test individual components with mocked dependencies
+- **Integration Tests**: Test component interactions (when marked)
+- **Coverage**: Configured to exclude test files and report missing coverage
+- **Fixtures**: Shared test data and mocks in `conftest.py`
+
+### Key Testing Patterns
+- **Mocked External Dependencies**: ChromaDB, Anthropic API, file system operations
+- **Pytest Configuration**: Located in `pyproject.toml` with coverage settings
+- **Test Discovery**: Follows pytest conventions (`test_*.py`, `Test*` classes, `test_*` functions)
+
+### Before Any Feature/Change
+**MANDATORY**: Run `uv run pytest` and ensure all tests pass. The test suite validates:
+- Document processing and chunking logic
+- Vector storage and search functionality  
+- AI integration and tool calling
+- Session management and state handling
+- Search tool registration and execution
+
+**Note**: If tests fail after your changes, investigate and fix them before proceeding. Use specific test commands to debug:
+```bash
+# Run only failed tests for debugging
+uv run pytest --lf -v
+
+# Run specific test file
+uv run pytest backend/tests/test_file.py -v
+
+# Run with more detailed output
+uv run pytest -vvv --tb=long
+```
